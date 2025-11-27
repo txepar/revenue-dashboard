@@ -109,10 +109,10 @@
 // ID de tu Hoja de Cálculo (el que me has proporcionado)
 const ID_DE_HOJA = '1UjQf2OYBVyR0lKYtTOYCX_yECe72SK7l_IIbe7PSdgU'; 
 
-// URL PÚBLICA ESTABLE para EXPORTAR en formato CSV (gid=0 es la primera hoja)
-// Esta es la estructura que garantiza la conexión sin errores 400.
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${ID_DE_HOJA}/export?format=csv&gid=0`;
-    
+// **SOLUCIÓN FINAL:** URL de publicación usando el formato 'pub' (más estable para scripts).
+// IMPORTANTE: Asegúrate de que la Hoja de Cálculo esté en MODO 'Cualquier persona con el enlace puede ver'
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${ID_DE_HOJA}/pub?output=csv&gid=0`;
+
 let cuentas = [];
 let isDark = false;
 
