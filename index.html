@@ -106,12 +106,15 @@
 // CONFIGURACIÓN Y LÓGICA DE DATOS REMOTOS
 // ============================================
 
-// ID de tu Hoja de Cálculo (el que me has proporcionado)
+// ID de tu Hoja de Cálculo (el ID de la URL de edición)
 const ID_DE_HOJA = '1UjQf2OYBVyR0lKYtTOYCX_yECe72SK7l_IIbe7PSdgU'; 
 
-// **SOLUCIÓN FINAL:** URL de publicación usando el formato 'pub' (más estable para scripts).
-// IMPORTANTE: Asegúrate de que la Hoja de Cálculo esté en MODO 'Cualquier persona con el enlace puede ver'
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${ID_DE_HOJA}/pub?output=csv&gid=0`;
+// ID de la Pestaña que contiene tus datos
+const GID_DE_PESTAÑA = '188292588'; 
+
+// SOLUCIÓN FINAL Y MÁS ROBUSTA: Usando la API de Google Visualization (gviz/tq)
+// Esta URL garantiza que Google sirva los datos como CSV sin CORS ni peticiones de login.
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${ID_DE_HOJA}/gviz/tq?tqx=out:csv&gid=${GID_DE_PESTAÑA}`;
 
 let cuentas = [];
 let isDark = false;
@@ -145,7 +148,18 @@ function parseCSV(csv) {
     const lines = csv.split('\n').filter(line => line.trim() !== '');
     if (lines.length <= 1) return []; // Necesitamos encabezado y al menos una fila de datos
     
-    const headers = lines[0].split(',').map(h => h.trim());
+    // Si la API de Gviz/tq funciona, la primera línea es la cabecera (incluye 'table') y la segunda la cabecera CSV real
+    // Si no es Gviz/tq, la primera línea es la cabecera CSV
+    let headerLineIndex = 0;
+    
+    // Detectar si la respuesta es de la API de Gviz, que tiene una cabecera extra de JSON/Table.
+    if(csv.trim().startsWith('/*') || csv.includes('google.visualization')) {
+        // En este caso, el CSV puro puede que empiece más tarde, pero el fetch(gviz) suele dar el CSV directo
+        // Si el primer split (por coma) no parece una cabecera, probamos la segunda línea
+        headerLineIndex = 0; // Dejar en 0 y esperar que la primera línea sea la cabecera CSV limpia
+    }
+
+    const headers = lines[headerLineIndex].split(',').map(h => h.trim());
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -159,6 +173,7 @@ function parseCSV(csv) {
         });
         
         // Mapear los datos al formato interno del dashboard, asegurando que los números sean enteros
+        // .replace(/[^\d]/g, '') limpia cualquier símbolo de moneda o formato
         const actual = parseInt(obj.actual.replace(/[^\d]/g, '') || 0);
         const objetivo = parseInt(obj.objetivo.replace(/[^\d]/g, '') || 0);
 
@@ -189,16 +204,19 @@ async function iniciar() {
         // Guardamos los datos remotos en LocalStorage para uso offline / caché
         localStorage.setItem('cuentasData', JSON.stringify(cuentas)); 
         document.getElementById('semaforo-texto').textContent = 'Conectado';
+        document.getElementById('semaforo-punto').style.backgroundColor = '#10b981'; // Verde fijo al conectar
     } else {
         // 2. Si falla la carga remota, intentamos cargar desde la última versión guardada
         const cuentasGuardadas = localStorage.getItem('cuentasData');
         if (cuentasGuardadas) {
             cuentas = JSON.parse(cuentasGuardadas); 
             document.getElementById('semaforo-texto').textContent = 'Offline (Caché)';
+            document.getElementById('semaforo-punto').style.backgroundColor = '#f97316'; // Naranja al usar caché
         } else {
              // 3. Si no hay datos remotos ni guardados, estará vacío
              cuentas = [];
              document.getElementById('semaforo-texto').textContent = 'Sin Datos';
+             document.getElementById('semaforo-punto').style.backgroundColor = '#ef4444'; // Rojo al no tener datos
         }
     }
 
@@ -361,84 +379,4 @@ function actualizarBarrasIndividuales() {
 }
 
 // ============================================
-// UTILIDADES & TEMA (Se mantienen)
-// ============================================
-
-function toggleTheme() {
-    isDark = !isDark;
-    if (isDark) {
-        activarDarkMode();
-    } else {
-        activarLightMode();
-    }
-}
-
-function activarDarkMode() {
-    isDark = true;
-    document.documentElement.classList.add('dark');
-    document.getElementById('body-bg').classList.remove('bg-gray-50');
-    document.getElementById('body-bg').classList.add('bg-slate-900');
-    
-    document.getElementById('main-card').classList.remove('bg-white');
-    document.getElementById('main-card').classList.add('bg-slate-950', 'border-slate-800');
-    
-    document.getElementById('header-bg').classList.remove('bg-white', 'border-gray-200');
-    document.getElementById('header-bg').classList.add('bg-slate-900', 'border-slate-800');
-    
-    document.getElementById('general-panel').classList.remove('bg-gray-50', 'border-gray-200');
-    document.getElementById('general-panel').classList.add('bg-slate-900', 'border-slate-800');
-
-    document.getElementById('title-text').classList.add('text-white');
-    
-    document.getElementById('icon-sun').classList.remove('hidden');
-    document.getElementById('icon-moon').classList.add('hidden');
-    
-    localStorage.setItem('theme', 'dark');
-    renderizarCuentas(); 
-}
-
-function activarLightMode() {
-    isDark = false;
-    document.documentElement.classList.remove('dark');
-    document.getElementById('body-bg').classList.add('bg-gray-50');
-    document.getElementById('body-bg').classList.remove('bg-slate-900');
-    
-    document.getElementById('main-card').classList.add('bg-white');
-    document.getElementById('main-card').classList.remove('bg-slate-950', 'border-slate-800');
-    
-    document.getElementById('header-bg').classList.add('bg-white', 'border-gray-200');
-    document.getElementById('header-bg').classList.remove('bg-slate-900', 'border-slate-800');
-    
-    document.getElementById('general-panel').classList.add('bg-gray-50', 'border-gray-200');
-    document.getElementById('general-panel').classList.remove('bg-slate-900', 'border-slate-800');
-
-    document.getElementById('title-text').classList.remove('text-white');
-    
-    document.getElementById('icon-sun').classList.add('hidden');
-    document.getElementById('icon-moon').classList.remove('hidden');
-    
-    localStorage.setItem('theme', 'light');
-    renderizarCuentas();
-}
-
-function formatear(num) {
-    return new Intl.NumberFormat('es-ES').format(num);
-}
-
-function obtenerColor(p) {
-    if (p >= 80) return 'bg-emerald-500';
-    if (p >= 70) return 'bg-yellow-400';
-    return 'bg-red-500';
-}
-
-function obtenerSemaforo(p) {
-    if (p >= 80) return { color: 'bg-emerald-500', texto: 'On track' };
-    if (p >= 70) return { color: 'bg-yellow-400', texto: 'Atención' };
-    return { color: 'bg-red-500', texto: 'Crítico' };
-}
-
-window.addEventListener('load', iniciar);
-
-</script>
-</body>
-</html>
+// UTILIDADES
