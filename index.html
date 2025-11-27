@@ -106,9 +106,13 @@
 // CONFIGURACIÓN Y LÓGICA DE DATOS REMOTOS
 // ============================================
 
-// URL DE TU HOJA DE GOOGLE PUBLICADA COMO CSV (gid=0 es la primera hoja)
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnZYxFilMBp1htlp45FAvIEi0ffMLcd5I8sRCIpl5tN-n49Tya1eEAKnM4lhYquXCl1OwyYSN-C1RQ/pub?gid=0&single=true&output=csv';
+// ID de tu Hoja de Cálculo (el que me has proporcionado)
+const ID_DE_HOJA = '1UjQf2OYBVyR0lKYtTOYCX_yECe72SK7l_IIbe7PSdgU'; 
 
+// URL PÚBLICA ESTABLE para EXPORTAR en formato CSV (gid=0 es la primera hoja)
+// Esta es la estructura que garantiza la conexión sin errores 400.
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${ID_DE_HOJA}/export?format=csv&gid=0`;
+    
 let cuentas = [];
 let isDark = false;
 
