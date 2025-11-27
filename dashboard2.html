@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revenue Dashboard Dinámico (Sheets Connect)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fillBar { from { width: 0%; } }
+        .progress-bar { transition: width 1s ease-out, background-color 0.5s; }
+        /* Ocultar flechas de input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        
+        /* Transiciones suaves de tema */
+        .theme-transition { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-gray-50 p-6 font-sans transition-colors duration-300" id="body-bg">
+
+<div id="main-card" class="theme-transition w-full max-w-7xl mx-auto rounded-xl shadow-xl overflow-hidden bg-white text-slate-800">
+    
+    <div id="header-bg" class="theme-transition px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
+        <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-emerald-100 text-emerald-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 id="title-text" class="text-xl font-bold">Revenue Dashboard FY 2025</h2>
+                <p class="text-xs text-gray-400">Datos en tiempo real (Fuente: Google Sheets)</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
+                <svg id="icon-sun" class="w-5 h-5 hidden text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="icon-moon" class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+
+            <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                <span id="semaforo-punto" class="w-2 h-2 rounded-full bg-gray-400"></span>
+                <span id="semaforo-texto" class="text-sm font-semibold text-gray-600 dark:text-gray-300">Cargando datos...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-6 flex flex-col md:flex-row gap-6">
+        
+        <div id="general-panel" class="theme-transition flex-shrink-0 w-full md:w-80 rounded-xl p-6 border bg-gray-50 border-gray-200">
+            <div class="text-center mb-6">
+                <p class="text-gray-400 text-sm uppercase tracking-wider font-semibold mb-2">Progreso Anual</p>
+                <div id="porcentaje-general" class="text-6xl font-black text-emerald-500 mb-2 tracking-tight">
+                    0%
+                </div>
+            </div>
+
+            <div class="relative h-6 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-6 shadow-inner">
+                <div id="barra-general" class="progress-bar absolute h-full rounded-full" style="width: 0%"></div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-slate-700">
+                    <span class="text-xs font-bold text-gray-400 uppercase">Objetivo Anual</span>
+                    <div class="flex items-center gap-1">
+                        <span class="text-gray-400">€</span>
+                        <input type="number" id="input-objetivo-total" 
+                            class="text-right font-bold w-24 bg-transparent border-b border-gray-200 dark:border-slate-600 focus:border-emerald-500 focus:outline-none theme-transition text-slate-800 dark:text-white"
+                            value="1222876" oninput="recalcularTodo()">
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase">Facturado Actual</span>
+                    <span id="texto-actual-total" class="font-bold text-emerald-500">€0</span>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 text-center">
+                    <span class="text-xs text-gray-400">Gap Pendiente</span>
+                    <div id="pendiente-total" class="text-xl font-bold text-slate-400">€0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1">
+            <div class="flex justify-between items-end mb-4">
+                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Desglose por Cuentas</h3>
+                <button onclick="agregarCuenta()" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded transition shadow-sm font-bold">+ Añadir Local</button>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="cuentas-grid">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================
+// CONFIGURACIÓN Y LÓGICA DE DATOS REMOTOS
+// ============================================
+
+// URL DE TU HOJA DE GOOGLE PUBLICADA COMO CSV (gid=0 es la primera hoja)
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnZYxFilMBp1htlp45FAvIEi0ffMLcd5I8sRCIpl5tN-n49Tya1eEAKnM4lhYquXCl1OwyYSN-C1RQ/pub?gid=0&single=true&output=csv';
+
+let cuentas = [];
+let isDark = false;
+
+
+async function fetchData() {
+    try {
+        const response = await fetch(SHEET_URL);
+        
+        // Si la respuesta no es OK, lanzamos un error
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const csvText = await response.text(); 
+        
+        // Convertir CSV a array de objetos
+        const newCuentas = parseCSV(csvText); 
+        
+        return newCuentas;
+        
+    } catch (error) {
+        console.error("Error al obtener datos de Google Sheets. Cargando datos locales si existen.", error);
+        // Si hay error, devolvemos un array vacío para que se use el LocalStorage
+        return []; 
+    }
+}
+
+// Función para transformar el CSV de Google Sheets
+function parseCSV(csv) {
+    const lines = csv.split('\n').filter(line => line.trim() !== '');
+    if (lines.length <= 1) return []; // Necesitamos encabezado y al menos una fila de datos
+    
+    const headers = lines[0].split(',').map(h => h.trim());
+    const data = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const obj = {};
+        
+        headers.forEach((header, index) => {
+            // Limpia el encabezado para usarlo como clave JS (ej: "Nombre" -> "nombre")
+            const key = header.toLowerCase();
+            obj[key] = values[index];
+        });
+        
+        // Mapear los datos al formato interno del dashboard, asegurando que los números sean enteros
+        const actual = parseInt(obj.actual.replace(/[^\d]/g, '') || 0);
+        const objetivo = parseInt(obj.objetivo.replace(/[^\d]/g, '') || 0);
+
+        // Solo se incluyen las filas que tienen al menos un nombre de cuenta
+        if (obj.nombre) {
+            data.push({
+                id: i,
+                nombre: obj.nombre,
+                actual: actual,
+                objetivo: objetivo 
+            });
+        }
+    }
+    return data;
+}
+
+
+// ============================================
+// LÓGICA DE ESTADO (Carga y Guardado)
+// ============================================
+
+async function iniciar() {
+    // 1. Intentamos cargar datos desde Google Sheets
+    const datosRemotos = await fetchData();
+    
+    if (datosRemotos.length > 0) {
+        cuentas = datosRemotos;
+        // Guardamos los datos remotos en LocalStorage para uso offline / caché
+        localStorage.setItem('cuentasData', JSON.stringify(cuentas)); 
+        document.getElementById('semaforo-texto').textContent = 'Conectado';
+    } else {
+        // 2. Si falla la carga remota, intentamos cargar desde la última versión guardada
+        const cuentasGuardadas = localStorage.getItem('cuentasData');
+        if (cuentasGuardadas) {
+            cuentas = JSON.parse(cuentasGuardadas); 
+            document.getElementById('semaforo-texto').textContent = 'Offline (Caché)';
+        } else {
+             // 3. Si no hay datos remotos ni guardados, estará vacío
+             cuentas = [];
+             document.getElementById('semaforo-texto').textContent = 'Sin Datos';
+        }
+    }
+
+    // Carga de Tema
+    if (localStorage.getItem('theme') === 'dark') {
+        activarDarkMode();
+    }
+
+    // Carga del Objetivo General (Este siempre se gestiona localmente en el HTML)
+    const objetivoGuardado = localStorage.getItem('objetivoGeneral');
+    if (objetivoGuardado) {
+        document.getElementById('input-objetivo-total').value = objetivoGuardado;
+    }
+
+    renderizarCuentas();
+    recalcularTodo();
+}
+
+function guardarDatos() {
+    // Solo guardamos los cambios locales (edición en pantalla o añadir cuenta) en el navegador
+    localStorage.setItem('cuentasData', JSON.stringify(cuentas));
+    // NOTA IMPORTANTE: Esta función NO actualiza la Hoja de Cálculo.
+    // El usuario debe actualizar la hoja para cambios permanentes.
+}
+
+
+// ============================================
+// FUNCIONES DE RENDERIZADO Y CÁLCULO (Se mantienen)
+// ============================================
+
+function renderizarCuentas() {
+    const grid = document.getElementById('cuentas-grid');
+    grid.innerHTML = ''; 
+
+    cuentas.forEach((cuenta, index) => {
+        const porcentaje = ((cuenta.actual / cuenta.objetivo) * 100).toFixed(1);
+        const color = obtenerColor(porcentaje);
+        
+        const card = document.createElement('div');
+        card.className = `theme-transition relative p-4 rounded-lg border shadow-sm group
+                         bg-white border-gray-200 
+                         dark:bg-slate-800 dark:border-slate-700`;
+
+        card.innerHTML = `
+            <button onclick="eliminarCuenta(${index})" class="absolute top-2 right-2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <input type="text" value="${cuenta.nombre}" onchange="actualizarNombre(${index}, this.value)"
+                class="w-full bg-transparent font-bold text-sm tracking-wide mb-3 border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none theme-transition text-slate-700 dark:text-slate-200 uppercase">
+
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-2xl font-bold theme-transition text-slate-800 dark:text-white">${porcentaje}%</span>
+            </div>
+            <div class="h-1.5 w-full bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
+                <div class="h-full ${color} transition-all duration-700" style="width: ${porcentaje}%"></div>
+            </div>
+
+            <hr class="border-gray-100 dark:border-slate-700 mb-3">
+
+            <div class="flex justify-between items-center gap-2 text-xs">
+                <div class="flex flex-col">
+                    <span class="text-gray-400 text-[10px] uppercase">Actual</span>
+                    <div class="flex items-center">
+                        <span class="text-gray-400 mr-1">€</span>
+                        <input type="number" value="${cuenta.actual}" oninput="actualizarValores(${index}, 'actual', this.value)"
+                            class="w-20 font-semibold bg-transparent border-b border-gray-200 dark:border-slate-600 focus:border-emerald-500 focus:outline-none theme-transition text-emerald-600">
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-end">
+                    <span class="text-gray-400 text-[10px] uppercase">Objetivo</span>
+                    <div class="flex items-center justify-end">
+                        <span class="text-gray-400 mr-1">/ €</span>
+                        <input type="number" value="${cuenta.objetivo}" oninput="actualizarValores(${index}, 'objetivo', this.value)"
+                            class="w-20 font-semibold text-right bg-transparent border-b border-gray-200 dark:border-slate-600 focus:border-emerald-500 focus:outline-none theme-transition text-slate-500 dark:text-slate-400">
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function actualizarValores(index, campo, valor) {
+    cuentas[index][campo] = Number(valor);
+    guardarDatos();
+    recalcularTodo(); 
+}
+
+function actualizarNombre(index, valor) {
+    cuentas[index].nombre = valor;
+    guardarDatos();
+}
+
+function agregarCuenta() {
+    cuentas.push({ id: Date.now(), nombre: 'CUENTA LOCAL', actual: 0, objetivo: 100000 });
+    guardarDatos();
+    renderizarCuentas();
+    recalcularTodo();
+}
+
+function eliminarCuenta(index) {
+    if(confirm('¿Borrar esta cuenta? NOTA: Esto solo la elimina de tu vista actual, no de Google Sheets.')) {
+        cuentas.splice(index, 1);
+        guardarDatos();
+        renderizarCuentas();
+        recalcularTodo();
+    }
+}
+
+function recalcularTodo() {
+    const objetivoTotal = Number(document.getElementById('input-objetivo-total').value);
+    const actualTotal = cuentas.reduce((sum, acc) => sum + acc.actual, 0);
+    
+    let porcentajeGeneral = 0;
+    if (objetivoTotal > 0) {
+        porcentajeGeneral = ((actualTotal / objetivoTotal) * 100).toFixed(1);
+    }
+
+    document.getElementById('porcentaje-general').textContent = porcentajeGeneral + '%';
+    document.getElementById('texto-actual-total').textContent = '€' + formatear(actualTotal);
+    document.getElementById('pendiente-total').textContent = '€' + formatear(objetivoTotal - actualTotal);
+    
+    const barra = document.getElementById('barra-general');
+    barra.style.width = porcentajeGeneral + '%';
+    barra.className = `progress-bar absolute h-full rounded-full ${obtenerColor(porcentajeGeneral)}`;
+
+    const semaforoInfo = obtenerSemaforo(porcentajeGeneral);
+    const semaforoPunto = document.getElementById('semaforo-punto');
+    
+    if(porcentajeGeneral >= 80) semaforoPunto.style.backgroundColor = '#10b981';
+    else if(porcentajeGeneral >= 70) semaforoPunto.style.backgroundColor = '#eab308';
+    else semaforoPunto.style.backgroundColor = '#ef4444';
+    
+    // Solo actualizamos el texto del semáforo si no estamos en estado de carga
+    if(document.getElementById('semaforo-texto').textContent.startsWith('Cargando') === false) {
+        document.getElementById('semaforo-texto').textContent = semaforoInfo.texto;
+    }
+
+
+    localStorage.setItem('objetivoGeneral', objetivoTotal);
+    actualizarBarrasIndividuales();
+}
+
+function actualizarBarrasIndividuales() {
+    const cards = document.getElementById('cuentas-grid').children;
+    cuentas.forEach((cuenta, idx) => {
+        if(cards[idx]) {
+            const p = ((cuenta.actual / cuenta.objetivo) * 100).toFixed(1);
+            const barra = cards[idx].querySelector('.progress-bar');
+            const textoPorc = cards[idx].querySelector('.text-2xl'); 
+            if(barra) {
+                barra.style.width = p + '%';
+                barra.className = `h-full transition-all duration-700 ${obtenerColor(p)}`;
+            }
+            if(textoPorc) textoPorc.innerText = p + '%';
+        }
+    });
+}
+
+// ============================================
+// UTILIDADES & TEMA (Se mantienen)
+// ============================================
+
+function toggleTheme() {
+    isDark = !isDark;
+    if (isDark) {
+        activarDarkMode();
+    } else {
+        activarLightMode();
+    }
+}
+
+function activarDarkMode() {
+    isDark = true;
+    document.documentElement.classList.add('dark');
+    document.getElementById('body-bg').classList.remove('bg-gray-50');
+    document.getElementById('body-bg').classList.add('bg-slate-900');
+    
+    document.getElementById('main-card').classList.remove('bg-white');
+    document.getElementById('main-card').classList.add('bg-slate-950', 'border-slate-800');
+    
+    document.getElementById('header-bg').classList.remove('bg-white', 'border-gray-200');
+    document.getElementById('header-bg').classList.add('bg-slate-900', 'border-slate-800');
+    
+    document.getElementById('general-panel').classList.remove('bg-gray-50', 'border-gray-200');
+    document.getElementById('general-panel').classList.add('bg-slate-900', 'border-slate-800');
+
+    document.getElementById('title-text').classList.add('text-white');
+    
+    document.getElementById('icon-sun').classList.remove('hidden');
+    document.getElementById('icon-moon').classList.add('hidden');
+    
+    localStorage.setItem('theme', 'dark');
+    renderizarCuentas(); 
+}
+
+function activarLightMode() {
+    isDark = false;
+    document.documentElement.classList.remove('dark');
+    document.getElementById('body-bg').classList.add('bg-gray-50');
+    document.getElementById('body-bg').classList.remove('bg-slate-900');
+    
+    document.getElementById('main-card').classList.add('bg-white');
+    document.getElementById('main-card').classList.remove('bg-slate-950', 'border-slate-800');
+    
+    document.getElementById('header-bg').classList.add('bg-white', 'border-gray-200');
+    document.getElementById('header-bg').classList.remove('bg-slate-900', 'border-slate-800');
+    
+    document.getElementById('general-panel').classList.add('bg-gray-50', 'border-gray-200');
+    document.getElementById('general-panel').classList.remove('bg-slate-900', 'border-slate-800');
+
+    document.getElementById('title-text').classList.remove('text-white');
+    
+    document.getElementById('icon-sun').classList.add('hidden');
+    document.getElementById('icon-moon').classList.remove('hidden');
+    
+    localStorage.setItem('theme', 'light');
+    renderizarCuentas();
+}
+
+function formatear(num) {
+    return new Intl.NumberFormat('es-ES').format(num);
+}
+
+function obtenerColor(p) {
+    if (p >= 80) return 'bg-emerald-500';
+    if (p >= 70) return 'bg-yellow-400';
+    return 'bg-red-500';
+}
+
+function obtenerSemaforo(p) {
+    if (p >= 80) return { color: 'bg-emerald-500', texto: 'On track' };
+    if (p >= 70) return { color: 'bg-yellow-400', texto: 'Atención' };
+    return { color: 'bg-red-500', texto: 'Crítico' };
+}
+
+window.addEventListener('load', iniciar);
+
+</script>
+</body>
+</html>
